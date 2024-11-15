@@ -26,6 +26,7 @@ public class DataSensoresController {
 
     @GetMapping("/obtenerdatos")
     public List<DataSensores> obtenerDatosSensores() {
+        System.out.print(dataSensoresRepository.findAll());
         return dataSensoresRepository.findAll(); // Retorna todos los datos de la base de datos
     }
 

@@ -33,6 +33,16 @@
         canvas {
             max-width: 100%;
         }
+        select {
+            padding: 5px;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        #ultimoValor {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -44,32 +54,49 @@
 
 <div class="container">
     <h1>Gráficas de Mediciones</h1>
-    <h3>Historial de datos</h3>
-    <canvas id="graficaMediciones"></canvas>
+    <h3>Seleccione el Tipo de Sensor:</h3>
+    <select id="sensorSelector">
+        <option value="" disabled selected>Seleccione un sensor</option>
+    </select>
+    <canvas id="graficaMediciones"></canvas> <!-- Gráfica de líneas -->
+    <canvas id="graficaBarras"></canvas> <!-- Gráfica de barras -->
+    <div id="ultimoValor"></div> <!-- Mostrar el último valor -->
 </div>
 
 <script>
-    // Realizar la solicitud AJAX para obtener los datos
-    fetch('/api/obtenerdatos')
-        .then(response => response.json())
-        .then(data => {
-            // Preparar los datos para la gráfica
-            var labels = [];
-            var values = [];
+    const sensorSelector = document.getElementById('sensorSelector');
+    let graficaMediciones; // Variable para la gráfica de líneas
+    let graficaBarras; // Variable para la gráfica de barras
+    let datosGlobales = []; // Para almacenar todos los datos recibidos del backend
 
-            data.forEach(function(item) {
-                var fecha = new Date(item.fecha);  // Convertir la fecha de string a objeto Date
-                labels.push(fecha.toLocaleString()); // Mostrar la fecha en formato legible
-                values.push(item.valor); // Valor de la medición
-            });
+    // Función para actualizar las gráficas
+    function actualizarGraficas(tiposensor) {
+        // Filtrar los datos por el tipo de sensor seleccionado
+        const datosFiltrados = datosGlobales.filter(item => item.tiposensor === tiposensor);
 
-            var ctx = document.getElementById('graficaMediciones').getContext('2d');
-            var graficaMediciones = new Chart(ctx, {
-                type: 'line', // Tipo de gráfica
+        if (datosFiltrados.length === 0) {
+            alert(`No hay datos para el sensor: ${tiposensor}`);
+            return;
+        }
+
+        // Preparar los datos para la gráfica de líneas
+        const labels = datosFiltrados.map(item => new Date(item.fecha).toLocaleString());
+        const values = datosFiltrados.map(item => item.valor);
+
+        // Actualizar la gráfica de líneas
+        if (graficaMediciones) {
+            graficaMediciones.data.labels = labels;
+            graficaMediciones.data.datasets[0].data = values;
+            graficaMediciones.data.datasets[0].label = `Datos del sensor: ${tiposensor}`;
+            graficaMediciones.update();
+        } else {
+            const ctx = document.getElementById('graficaMediciones').getContext('2d');
+            graficaMediciones = new Chart(ctx, {
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Valor de Sensor',
+                        label: `Datos del sensor: ${tiposensor}`,
                         data: values,
                         borderColor: 'rgba(75, 192, 192, 1)',
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -80,25 +107,94 @@
                 options: {
                     scales: {
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Fecha'
-                            }
+                            title: { display: true, text: 'Fecha' }
                         },
                         y: {
-                            title: {
-                                display: true,
-                                text: 'Valor'
-                            }
+                            title: { display: true, text: 'Valor' }
                         }
                     }
                 }
             });
-        })
-        .catch(error => {
-            console.error('Error al obtener los datos:', error);
+        }
+
+        // Preparar los datos para la gráfica de barras
+        const barrasValues = datosFiltrados.map(item => item.valor);
+        const barrasLabels = datosFiltrados.map(item => new Date(item.fecha).toLocaleString());
+
+        // Actualizar la gráfica de barras
+        if (graficaBarras) {
+            graficaBarras.data.labels = barrasLabels;
+            graficaBarras.data.datasets[0].data = barrasValues;
+            graficaBarras.data.datasets[0].label = `Datos de barras: ${tiposensor}`;
+            graficaBarras.update();
+        } else {
+            const ctxBarras = document.getElementById('graficaBarras').getContext('2d');
+            graficaBarras = new Chart(ctxBarras, {
+                type: 'bar',
+                data: {
+                    labels: barrasLabels,
+                    datasets: [{
+                        label: `Datos de barras: ${tiposensor}`,
+                        data: barrasValues,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Fecha' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Valor' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Obtener el último valor registrado
+        const ultimoDato = datosFiltrados[datosFiltrados.length - 1];
+        const ultimoValor = ultimoDato.valor;
+        const ultimaFecha = new Date(ultimoDato.fecha).toLocaleString();
+
+        // Mostrar el último valor registrado
+        document.getElementById('ultimoValor').textContent = `Último valor registrado: ${ultimoValor} en ${ultimaFecha}`;
+    }
+
+    // Función para inicializar el selector de sensores
+    function inicializarSelector() {
+        // Obtener los tipos de sensor únicos
+        const tiposSensores = [...new Set(datosGlobales.map(item => item.tiposensor))];
+
+        // Crear las opciones del selector
+        tiposSensores.forEach(tipo => {
+            if (tipo) { // Evitar valores nulos o undefined
+                const option = document.createElement('option');
+                option.value = tipo;
+                option.textContent = tipo;
+                sensorSelector.appendChild(option);
+            }
         });
+    }
+
+    // Obtener los datos del backend
+    fetch('/api/obtenerdatos')
+        .then(response => response.json())
+        .then(data => {
+            datosGlobales = data; // Almacenar los datos globalmente
+            inicializarSelector(); // Inicializar el selector con los tipos de sensor
+        })
+        .catch(error => console.error('Error al obtener los datos:', error));
+
+    // Escuchar cambios en el selector de sensor
+    sensorSelector.addEventListener('change', (event) => {
+        const tiposensor = event.target.value;
+        if (tiposensor) {
+            actualizarGraficas(tiposensor);
+        }
+    });
 </script>
 </body>
 </html>
-
