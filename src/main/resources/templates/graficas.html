@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gráficas de Mediciones</title>
+    <!-- Estilos básicos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+        }
+        nav {
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+        }
+        nav a {
+            color: white;
+            margin: 0 15px;
+            text-decoration: none;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+        }
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="#">Inicio</a>
+    <a href="#">Gráficas</a>
+    <a href="#">Acerca de</a>
+</nav>
+
+<div class="container">
+    <h1>Gráficas de Mediciones</h1>
+    <h3>Historial de datos</h3>
+    <canvas id="graficaMediciones"></canvas>
+</div>
+
+<script>
+    // Realizar la solicitud AJAX para obtener los datos
+    fetch('/api/obtenerdatos')
+        .then(response => response.json())
+        .then(data => {
+            // Preparar los datos para la gráfica
+            var labels = [];
+            var values = [];
+
+            data.forEach(function(item) {
+                var fecha = new Date(item.fecha);  // Convertir la fecha de string a objeto Date
+                labels.push(fecha.toLocaleString()); // Mostrar la fecha en formato legible
+                values.push(item.valor); // Valor de la medición
+            });
+
+            var ctx = document.getElementById('graficaMediciones').getContext('2d');
+            var graficaMediciones = new Chart(ctx, {
+                type: 'line', // Tipo de gráfica
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Valor de Sensor',
+                        data: values,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        fill: false,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fecha'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Valor'
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error al obtener los datos:', error);
+        });
+</script>
+</body>
+</html>
+
